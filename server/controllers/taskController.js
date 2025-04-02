@@ -14,7 +14,7 @@
 
 import asyncHandler from 'express-async-handler';
 import Task from '../models/task.js';
-import { Workspace } from '../models/Workspace.js';
+import { Workspace } from '../models/workspace.js';
 import { createTaskAssignmentNotifications } from '../services/notificationService.js';
 
 // Validation helper
