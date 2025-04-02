@@ -36,7 +36,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:8800' || 'https://aiva-lfxq.onrender.com',
+        target:  'https://aiva-lfxq.onrender.com'||'http://localhost:8800',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/api/, '')

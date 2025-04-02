@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { logout } from './authSlice';
 
 // Get the API URL from environment variables
-const API_URL = 'http://localhost:8800';
+const API_URL = 'https://aiva-lfxq.onrender.com'|| 'http://localhost:8800';
 
 const baseQuery = fetchBaseQuery({ 
   baseUrl: API_URL,
