@@ -36,6 +36,13 @@ const baseQueryWithRetry = async (args, api, extraOptions) => {
     url: args?.url?.startsWith('/api/') ? args.url : `/api/${args?.url?.startsWith('/') ? args.url.substring(1) : args.url || ''}`
   };
 
+  console.log('API Request:', {
+    url: queryArgs.url,
+    method: queryArgs.method,
+    baseUrl: API_URL,
+    fullUrl: `${API_URL}${queryArgs.url}`
+  });
+
   const token = api.getState()?.auth?.token;
   const isAuthRoute = queryArgs.url.includes('auth/');
   const isPublicRoute = queryArgs.url.includes('public');
@@ -50,15 +57,42 @@ const baseQueryWithRetry = async (args, api, extraOptions) => {
     };
   }
 
-  const result = await baseQuery(queryArgs, api, extraOptions);
+  try {
+    const result = await baseQuery(queryArgs, api, extraOptions);
+    
+    // Log successful response
+    if (!result.error) {
+      console.log('API Response Success:', {
+        url: queryArgs.url,
+        status: 'success'
+      });
+    } else {
+      // Log error response
+      console.error('API Response Error:', {
+        url: queryArgs.url,
+        status: result.error.status,
+        message: result.error.data?.message || 'Unknown error'
+      });
+    }
 
-  // Handle 401 errors
-  if (result.error?.status === 401) {
-    api.dispatch(logout());
+    // Handle 401 errors
+    if (result.error?.status === 401) {
+      api.dispatch(logout());
+    }
+
     return result;
+  } catch (error) {
+    console.error('API Request Failed:', {
+      url: queryArgs.url,
+      error: error.message
+    });
+    return {
+      error: {
+        status: 'FETCH_ERROR',
+        data: { message: 'Failed to process request' }
+      }
+    };
   }
-
-  return result;
 };
 
 export const apiSlice = createApi({
