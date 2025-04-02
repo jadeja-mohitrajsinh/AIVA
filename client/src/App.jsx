@@ -1,8 +1,6 @@
 import React, { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, useSearchParams, useNavigate } from 'react-router-dom';
-import { Provider } from 'react-redux';
-import { ThemeProvider } from './context/ThemeContext';
-import store from './redux/store';
+import { useSelector } from 'react-redux';
 import './utils/suppressWarnings';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -26,7 +24,6 @@ import WorkspaceProvider from './components/workspace/provider/WorkspaceProvider
 import WorkspaceInitializer from './components/workspace/provider/WorkspaceInitializer';
 import { useLastPosition } from './hooks/useLastPosition';
 import useWorkspaceRestoration from './hooks/useWorkspaceRestoration';
-import { useSelector } from 'react-redux';
 import WorkspaceDashboard from './pages/WorkspaceDashboard';
 import WorkspaceCalendar from './pages/WorkspaceCalendar';
 import WorkspaceInvitation from './pages/WorkspaceInvitation';
@@ -45,7 +42,6 @@ function RequireAuth({ children }) {
   const invitationId = searchParams.get('invitation');
 
   useEffect(() => {
-    // Save the attempted URL if not authenticated
     if (!isAuthenticated && location.pathname !== '/log-in') {
       sessionStorage.setItem('redirectPath', location.pathname + location.search);
     }
@@ -67,12 +63,10 @@ function Layout() {
   const navigate = useNavigate();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
 
-  // Use both restoration hooks
   useLastPosition();
   useWorkspaceRestoration();
 
   useEffect(() => {
-    // Handle post-login navigation
     const redirectPath = sessionStorage.getItem('redirectPath');
     if (redirectPath) {
       sessionStorage.removeItem('redirectPath');
@@ -87,83 +81,72 @@ function Layout() {
   return (
     <WorkspaceProvider>
       <div className='flex h-screen overflow-hidden bg-gray-100 dark:bg-gray-900'>
-        {/* Sidebar - Desktop */}
         <div className='hidden md:flex md:flex-shrink-0'>
           <div className='w-64 bg-white dark:bg-gray-800'>
             <Sidebar />
           </div>
         </div>
 
-        {/* Mobile Sidebar */}
         <MobileSidebar isOpen={isMobileSidebarOpen} setIsOpen={setIsMobileSidebarOpen} />
 
-        {/* Main Content */}
         <div className='flex flex-col flex-1 w-0 overflow-hidden'>
           <Navbar setSidebarOpen={setIsMobileSidebarOpen} />
           
           <main className='relative overflow-y-auto focus:outline-none'>
-            
-              <div className='ml-7 max-w-7xl'>
-                <Routes>
-                  {/* Dashboard and Profile Routes */}
-                  <Route index element={<Navigate to='/dashboard' replace />} />
-                  <Route path='/dashboard' element={<Dashboard />} />
-                  <Route path='/profile' element={<Profile />} />
-                  <Route path='/invitations' element={<InvitationsPage />} />
-                  
-                  {/* Legacy Routes - Redirect to new format */}
-                  <Route path='/tasks'>
-                    <Route 
-                      path=':workspaceId/task/:taskId' 
-                      element={<TaskDetails />}
-                    />
-                    <Route 
-                      path=':workspaceId/dashboard' 
-                      element={
-                        <Navigate 
-                          to={({params}) => `/workspace/${params.workspaceId}/dashboard`} 
-                          replace 
-                        />
-                      }
-                    />
-                    <Route 
-                      path=':workspaceId/*' 
-                      element={
-                        <Navigate 
-                          to={location => `/workspace${location.pathname.replace('/tasks', '')}`} 
-                          replace 
-                        />
-                      } 
-                    />
-                    <Route index element={<Navigate to='/workspace' replace />} />
-                  </Route>
-                  
-                  {/* Workspace Routes */}
-                  <Route path='/workspace'>
+            <div className='ml-7 max-w-7xl'>
+              <Routes>
+                <Route index element={<Navigate to='/dashboard' replace />} />
+                <Route path='/dashboard' element={<Dashboard />} />
+                <Route path='/profile' element={<Profile />} />
+                <Route path='/invitations' element={<InvitationsPage />} />
+                
+                <Route path='/tasks'>
+                  <Route path=':workspaceId/task/:taskId' element={<TaskDetails />} />
+                  <Route path='new' element={<Navigate to='/workspace' replace />} />
+                  <Route 
+                    path=':workspaceId/dashboard' 
+                    element={
+                      <Navigate 
+                        to={({params}) => `/workspace/${params.workspaceId}/dashboard`} 
+                        replace 
+                      />
+                    }
+                  />
+                  <Route 
+                    path=':workspaceId/*' 
+                    element={
+                      <Navigate 
+                        to={location => `/workspace${location.pathname.replace('/tasks', '')}`} 
+                        replace 
+                      />
+                    } 
+                  />
+                  <Route index element={<Navigate to='/workspace' replace />} />
+                </Route>
+                
+                <Route path='/workspace'>
+                  <Route index element={<WorkspaceDashboard />} />
+                  <Route path=':workspaceId'>
                     <Route index element={<WorkspaceDashboard />} />
-                    <Route path=':workspaceId'>
-                      <Route index element={<WorkspaceDashboard />} />
-                      <Route path='dashboard' element={<WorkspaceDashboard />} />
-                      <Route path='overview' element={<Workspace />} />
-                      <Route path='tasks' element={<TasksPage />} />
-                      <Route path='task/:taskId' element={<TaskDetails />} />
-                      <Route path='notes' element={<Notes />} />
-                      <Route path='calendar' element={<WorkspaceCalendar />} />
-                      <Route path='team' element={
-                        <TeamRouteGuard>
-                          <TeamPage />
-                        </TeamRouteGuard>
-                      } />
-                      <Route path='trash' element={<Trash />} />
-                      <Route path='settings' element={<WorkspaceSettingsPage />} />
-                    </Route>
+                    <Route path='dashboard' element={<WorkspaceDashboard />} />
+                    <Route path='overview' element={<Workspace />} />
+                    <Route path='tasks' element={<TasksPage />} />
+                    <Route path='task/:taskId' element={<TaskDetails />} />
+                    <Route path='notes' element={<Notes />} />
+                    <Route path='calendar' element={<WorkspaceCalendar />} />
+                    <Route path='team' element={
+                      <TeamRouteGuard>
+                        <TeamPage />
+                      </TeamRouteGuard>
+                    } />
+                    <Route path='trash' element={<Trash />} />
+                    <Route path='settings' element={<WorkspaceSettingsPage />} />
                   </Route>
-                  
-                  {/* Catch-all route */}
-                  <Route path='*' element={<Navigate to='/dashboard' replace />} />
-                </Routes>
-              </div>
-           
+                </Route>
+                
+                <Route path='*' element={<Navigate to='/dashboard' replace />} />
+              </Routes>
+            </div>
           </main>
         </div>
       </div>
@@ -172,45 +155,61 @@ function Layout() {
 }
 
 function App() {
-  return (
-    <Provider store={store}>
-      <ThemeProvider>
-        <main className='w-full min-h-screen bg-[#f3f4f6] dark:bg-gray-900'>
-          <Routes>
-            {/* Auth routes with AuthLayout */}
-            <Route element={<AuthLayout />}>
-              <Route path='/log-in' element={<Login />} />
-              <Route path='/register' element={<Register />} />
-              <Route path='/signup' element={<Register />} />
-              <Route path='/forgot-password' element={<ForgotPassword />} />
-              <Route path='/reset-password' element={<ResetPassword />} />
-            </Route>
-            
-            {/* Workspace invitation route */}
-            <Route path='/workspace/invitation' element={<WorkspaceInvitation />} />
-            
-            {/* Protected routes with main Layout */}
-            <Route path='/*' element={
-              <RequireAuth>
-                <WorkspaceInitializer />
-                <Layout />
-              </RequireAuth>
-            } />
+  const currentTheme = useSelector((state) => state.theme.current);
 
-            {/* Workspace trash route */}
-            <Route
-              path="/workspaces/trash"
-              element={
-                <RequireAuth>
-                  <WorkspaceTrash />
-                </RequireAuth>
-              }
-            />
-          </Routes>
-          <ToastConfig />
-        </main>
-      </ThemeProvider>
-    </Provider>
+  useEffect(() => {
+    document.documentElement.classList.remove('light', 'dark');
+
+    if (currentTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else if (currentTheme === 'light') {
+      document.documentElement.classList.add('light');
+    } else if (currentTheme === 'system') {
+      const isSystemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.classList.add(isSystemDark ? 'dark' : 'light');
+      
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleChange = (e) => {
+        document.documentElement.classList.remove('light', 'dark');
+        document.documentElement.classList.add(e.matches ? 'dark' : 'light');
+      };
+      
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+  }, [currentTheme]);
+
+  return (
+    <main className='w-full min-h-screen bg-[#f3f4f6] dark:bg-gray-900'>
+      <Routes>
+        <Route element={<AuthLayout />}>
+          <Route path='/log-in' element={<Login />} />
+          <Route path='/register' element={<Register />} />
+          <Route path='/signup' element={<Register />} />
+          <Route path='/forgot-password' element={<ForgotPassword />} />
+          <Route path='/reset-password' element={<ResetPassword />} />
+        </Route>
+        
+        <Route path='/workspace/invitation' element={<WorkspaceInvitation />} />
+        
+        <Route path='/*' element={
+          <RequireAuth>
+            <WorkspaceInitializer />
+            <Layout />
+          </RequireAuth>
+        } />
+
+        <Route
+          path="/workspaces/trash"
+          element={
+            <RequireAuth>
+              <WorkspaceTrash />
+            </RequireAuth>
+          }
+        />
+      </Routes>
+      <ToastConfig />
+    </main>
   );
 }
 

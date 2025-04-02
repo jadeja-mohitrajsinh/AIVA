@@ -12,49 +12,45 @@
 *=================================================================*/
 import { createSlice } from '@reduxjs/toolkit';
 
+// Get initial theme from localStorage or system preference
 const getInitialTheme = () => {
-  // Check localStorage first
-  const savedTheme = localStorage.getItem('darkMode');
-  if (savedTheme !== null) {
-    return savedTheme === 'true';
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme) {
+    return savedTheme;
   }
-  // If no theme in localStorage, check system preference
   if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    return true;
+    return 'dark';
   }
-  // Default to light mode
-  return false;
+  return 'light';
 };
 
 const initialState = {
-  darkMode: getInitialTheme(),
+  current: getInitialTheme()
 };
 
 const themeSlice = createSlice({
   name: 'theme',
   initialState,
   reducers: {
-    toggleTheme: (state) => {
-      state.darkMode = !state.darkMode;
-      localStorage.setItem('darkMode', state.darkMode);
-      // Toggle dark class on document root for Tailwind dark mode
-      if (state.darkMode) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-    },
     setTheme: (state, action) => {
-      state.darkMode = action.payload;
-      localStorage.setItem('darkMode', action.payload);
-      if (action.payload) {
+      state.current = action.payload;
+      // Apply theme changes immediately
+      if (action.payload === 'dark') {
         document.documentElement.classList.add('dark');
-      } else {
+        document.documentElement.classList.remove('light');
+      } else if (action.payload === 'light') {
         document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+      } else if (action.payload === 'system') {
+        const isSystemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.classList.toggle('dark', isSystemDark);
+        document.documentElement.classList.toggle('light', !isSystemDark);
       }
-    },
-  },
+      // Save to localStorage
+      localStorage.setItem('theme', action.payload);
+    }
+  }
 });
 
-export const { toggleTheme, setTheme } = themeSlice.actions;
+export const { setTheme } = themeSlice.actions;
 export default themeSlice.reducer; 

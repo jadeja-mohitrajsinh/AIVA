@@ -11,9 +11,10 @@
 * Copyright (c) 2024 Mohitraj Jadeja. All rights reserved.
 *=================================================================*/
 import { configureStore } from "@reduxjs/toolkit";
+import { setupListeners } from '@reduxjs/toolkit/query';
 import authReducer from "./slices/authSlice";
 import settingsReducer from "./slices/settingsSlice";
-import { apiSlice } from "./slices/apiSlice";
+import { apiSlice } from "./slices/api/apiSlice";
 import workspaceReducer from './slices/workspaceSlice';
 import taskApiSlice from './slices/api/taskApiSlice';
 import notificationReducer from './slices/notificationSlice';
@@ -41,7 +42,9 @@ const store = configureStore({
       .concat(noteApiSlice.middleware)
       .concat(workspaceApiSlice.middleware)
       .concat(notificationMiddleware),
-  devTools: true,
+  devTools: process.env.NODE_ENV !== 'production',
 });
+
+setupListeners(store.dispatch);
 
 export default store;

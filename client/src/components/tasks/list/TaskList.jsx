@@ -18,57 +18,57 @@ import { LoadingSpinner } from '../../shared/feedback/LoadingSpinner';
 import { useWorkspace } from '../../workspace/provider/WorkspaceProvider';
 import { toast } from 'sonner';
 import TaskDialog from '../dialogs/TaskDialog';
-
+import { Button } from '../../shared/buttons/Button';
 import { FaTasks, FaSpinner, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import StatCard from '../../shared/cards/StatCard';
 import EmptyState from '../../shared/EmptyState';
 import Spinner from '../../shared/Spinner';
+import AddTask from '../dialogs/AddTask';
 
 
-const TaskList = () => {
+const TaskList = ({ tasks = [], showBudgetDetails = false, workspace }) => {
   const [filter, setFilter] = useState('active');
-  const { workspace, isLoading: isWorkspaceLoading, error: workspaceError } = useWorkspace();
+  const { workspace: workspaceContext, isLoading: isWorkspaceLoading, error: workspaceError } = useWorkspace();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
 
   const navigate = useNavigate();
 
   // Get workspace member role - only if we have a workspace with an ID
   const { data: workspaceData, isLoading: isMembersLoading, error: membersError } = useGetWorkspaceMembersQuery(
-    workspace?._id,
+    workspaceContext?._id,
     {
-      skip: !workspace?._id || isWorkspaceLoading
+      skip: !workspaceContext?._id || isWorkspaceLoading
     }
   );
   
   // Check if user is a member or admin
-  const userRole = workspaceData?.userRole || workspace?.userRole || 'member';
-  const isAdmin = userRole === 'admin' || userRole === 'owner' || workspace?.owner?._id === workspace?.currentUser;
+  const userRole = workspaceData?.userRole || workspaceContext?.userRole || 'member';
+  const isAdmin = userRole === 'admin' || userRole === 'owner' || workspaceContext?.owner?._id === workspaceContext?.currentUser;
   
   const { data, isLoading: isTasksLoading, error: tasksError, refetch } = useGetWorkspaceTasksQuery({ 
-    workspaceId: workspace?._id,
+    workspaceId: workspaceContext?._id,
     filter
   }, {
-    skip: !workspace?._id || isWorkspaceLoading,
+    skip: !workspaceContext?._id || isWorkspaceLoading,
     refetchOnMountOrArgChange: true,
-    pollingInterval: 0
+    pollingInterval: 5000
   });
 
-  const tasks = data?.tasks || [];
+  const tasksFromData = data?.tasks || [];
   const stats = data?.stats || {};
 
   // Handle task update
   const handleTaskUpdate = useCallback(async () => {
-    if (!workspace?._id) return;
+    if (!workspaceContext?._id) return;
     
     try {
       await refetch();
     } catch (err) {
-
-      //console.error('Error refreshing tasks:', err);
       toast.error('Failed to refresh tasks');
     }
-  }, [workspace?._id, refetch]);
+  }, [workspaceContext?._id, refetch]);
 
   // Handle filter change
   const handleFilterChange = async (newFilter) => {
@@ -76,11 +76,15 @@ const TaskList = () => {
     try {
       await refetch();
     } catch (err) {
-
-      //console.error('Error refreshing tasks after filter change:', err);
+      toast.error('Failed to refresh tasks');
     }
   };
 
+  // Add task success handler
+  const handleAddTaskSuccess = useCallback(() => {
+    setIsAddTaskOpen(false);
+    refetch(); // Refresh tasks and stats
+  }, [refetch]);
 
   // Show loading state when workspace is loading
   if (isWorkspaceLoading) {
@@ -105,7 +109,7 @@ const TaskList = () => {
   }
 
   // Show workspace selection message if no workspace is selected
-  if (!workspace || !workspace._id) {
+  if (!workspaceContext || !workspaceContext._id) {
     return (
       <div className="text-center text-gray-500 dark:text-gray-400 p-4">
         <p>Please select a workspace from the sidebar to view tasks</p>
@@ -140,48 +144,18 @@ const TaskList = () => {
   }
 
   return (
-
     <div className="flex flex-col gap-4">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Tasks ({stats.totalCount || 0})
-        </h1>
+      <div className="flex items-center justify-end">
         <button
-          onClick={() => navigate('/tasks/new')}
+          onClick={() => setIsAddTaskOpen(true)}
           className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
         >
           Create Task
         </button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard
-          title="Total Tasks"
-          value={stats.totalCount || 0}
-          icon={<FaTasks className="w-5 h-5" />}
-          color="text-blue-600 dark:text-blue-400"
-        />
-        <StatCard
-          title="In Progress"
-          value={stats.inProgressCount || 0}
-          icon={<FaSpinner className="w-5 h-5" />}
-          color="text-yellow-600 dark:text-yellow-400"
-        />
-        <StatCard
-          title="Completed"
-          value={stats.completedCount || 0}
-          icon={<FaCheckCircle className="w-5 h-5" />}
-          color="text-green-600 dark:text-green-400"
-        />
-        <StatCard
-          title="Overdue"
-          value={stats.overdueCount || 0}
-          icon={<FaExclamationCircle className="w-5 h-5" />}
-          color="text-red-600 dark:text-red-400"
-        />
-      </div>
+      
 
       {/* Task List */}
       <div className="mt-4">
@@ -193,23 +167,34 @@ const TaskList = () => {
           <div className="text-center text-red-600 dark:text-red-400">
             {tasksError.data?.message || 'Failed to load tasks'}
           </div>
-        ) : tasks.length === 0 ? (
+        ) : tasksFromData.length === 0 ? (
           <EmptyState
             title="No tasks found"
             description="Get started by creating a new task"
-            action={{
-              label: 'Create Task',
-              onClick: () => navigate('/tasks/new'),
-            }}
+            action={
+              <Button
+                label="Create Task"
+                onClick={() => setIsAddTaskOpen(true)}
+                variant="primary"
+                icon={<FaTasks />}
+              />
+            }
           />
         ) : (
-          <div className="space-y-4">
-            {tasks.map((task) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {tasksFromData.map((task) => (
               <TaskCard key={task._id} task={task} onUpdate={handleTaskUpdate} />
             ))}
           </div>
         )}
       </div>
+
+      {/* Add Task Dialog */}
+      <AddTask
+        isOpen={isAddTaskOpen}
+        setOpen={setIsAddTaskOpen}
+        onSuccess={handleAddTaskSuccess}
+      />
     </div>
   );
 };

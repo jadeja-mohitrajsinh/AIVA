@@ -131,9 +131,7 @@ const TaskDetails = () => {
         (Date.now() - navigationState.timestamp) < 24 * 60 * 60 * 1000;
 
       if (isStateValid) {
-
         //console.log('Restoring navigation to:', navigationState.lastPath);
-
         navigate(navigationState.lastPath, { replace: true });
       } else {
         // Clear expired navigation state
@@ -184,16 +182,14 @@ const TaskDetails = () => {
             dispatch(setCurrentWorkspace(parsedWorkspace));
           }
         } catch (error) {
-
           //console.error('Error parsing saved workspace:', error);
-
         }
       }
     }
   }, [currentWorkspace, workspaceId, dispatch, isValidWorkspaceId]);
 
   const { data: taskData, isLoading: isTaskLoading, error, refetch } = useGetTaskQuery(
-    { taskId, workspaceId },
+    taskId,
     { 
       skip: !taskId || !isValidWorkspaceId,
       refetchOnMountOrArgChange: true
@@ -211,31 +207,36 @@ const TaskDetails = () => {
   // For debugging
   useEffect(() => {
     if (workspaceData) {
-
       // console.log('Workspace Data:', workspaceData);
       // console.log('Workspace Info:', workspaceInfo);
       // console.log('Workspace Name:', workspaceName);
       // console.log('Workspace Description:', workspaceDescription);
-
     }
   }, [workspaceData, workspaceInfo, workspaceName, workspaceDescription]);
 
   // Update local task state when data changes
   useEffect(() => {
-    if (taskData && !updatingSubtaskIds.size) {
-      const currentSubtasks = task?.subtasks || [];
-      const newSubtasks = taskData.subtasks || [];
+    if (taskData?.data && !updatingSubtaskIds.size) {
+      // Ensure we have the correct task data structure
+      const taskWithSubtasks = {
+        ...taskData.data,
+        subtasks: taskData.data.subtasks || []
+      };
       
-      // Deep compare subtasks to check for actual changes
-      const subtasksChanged = JSON.stringify(currentSubtasks) !== JSON.stringify(newSubtasks);
-      
-      // Only update if task is null (initial load) or if subtasks have actually changed
-      if (!task || subtasksChanged) {
-
-        setTask(taskData);
+      // Only update if task is null (initial load) or if data has changed
+      if (!task || JSON.stringify(task) !== JSON.stringify(taskWithSubtasks)) {
+        setTask(taskWithSubtasks);
       }
     }
   }, [taskData, updatingSubtaskIds, task]);
+
+  // Debug log to check task data
+  useEffect(() => {
+    if (taskData) {
+      console.log('Task Data:', taskData);
+      console.log('Current Task State:', task);
+    }
+  }, [taskData, task]);
 
   // Calculate statistics
   const taskStats = useMemo(() => {
@@ -318,9 +319,6 @@ const TaskDetails = () => {
         <button
           onClick={() => {
             const targetPath = `/workspace/${workspaceId}/tasks`;
-
-            //console.log('Navigating to:', targetPath); // Debug log
-
             navigate(targetPath, { replace: true });
           }}
           className="px-4 py-2 text-blue-600 hover:text-blue-700 flex items-center gap-2"
@@ -360,9 +358,6 @@ const TaskDetails = () => {
           <button
             onClick={() => {
               const targetPath = `/workspace/${workspaceId}/tasks`;
-
-              //console.log('Navigating to:', targetPath); // Debug log
-
               navigate(targetPath, { replace: true });
             }}
             className="px-4 py-2 text-blue-600 hover:text-blue-700 flex items-center gap-2"
@@ -374,7 +369,7 @@ const TaskDetails = () => {
     );
   }
 
-  if (!task) {
+  if (!taskData?.data) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <div className="text-gray-500 text-center mb-4">
@@ -385,9 +380,6 @@ const TaskDetails = () => {
         <button
           onClick={() => {
             const targetPath = `/workspace/${workspaceId}/tasks`;
-
-            //console.log('Navigating to:', targetPath); // Debug log
-
             navigate(targetPath, { replace: true });
           }}
           className="px-4 py-2 text-blue-600 hover:text-blue-700 flex items-center gap-2"
@@ -427,7 +419,7 @@ const TaskDetails = () => {
       toast.success('Subtask added successfully');
       refetch();
     } catch (error) {
-
+      //console.error('Error adding subtask:', error);
       toast.error(error?.data?.message || 'Failed to add subtask');
     }
   };
@@ -464,10 +456,8 @@ const TaskDetails = () => {
       toast.success(`Subtask marked as ${newStatus}`);
     } catch (error) {
       // Revert the optimistic update on error
-      setTask(taskData);
-
+      setTask(taskData.data);
       //console.error('Error toggling subtask status:', error);
-
       toast.error(error?.data?.message || 'Failed to update subtask status');
     } finally {
       setUpdatingSubtaskIds(prev => {
@@ -504,10 +494,8 @@ const TaskDetails = () => {
       setEditValue('');
     } catch (error) {
       // Revert the optimistic update on error
-      setTask(taskData);
-
+      setTask(taskData.data);
       //console.error('Error updating subtask:', error);
-
       toast.error(error?.data?.message || 'Failed to update subtask');
     }
   };
@@ -529,10 +517,8 @@ const TaskDetails = () => {
       toast.success('Subtask deleted successfully');
     } catch (error) {
       // Revert the optimistic update on error
-      setTask(taskData);
-
+      setTask(taskData.data);
       //console.error('Error deleting subtask:', error);
-
       toast.error(error?.data?.message || 'Failed to delete subtask');
     }
   };
@@ -557,7 +543,7 @@ const TaskDetails = () => {
       toast.success(`Subtask status updated to ${newStatus}`);
     } catch (error) {
       // Revert the optimistic update on error
-      setTask(taskData);
+      setTask(taskData.data);
       toast.error('Failed to update subtask status');
     }
   };
@@ -570,9 +556,6 @@ const TaskDetails = () => {
           <button
             onClick={() => {
               const targetPath = `/workspace/${workspaceId}/tasks`;
-
-              //console.log('Navigating to:', targetPath); // Debug log
-
               navigate(targetPath, { replace: true });
             }}
             className="flex items-center text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
@@ -595,10 +578,10 @@ const TaskDetails = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm">
           <div className="flex flex-col space-y-4">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              {task.title}
+              {task?.title || 'Untitled Task'}
             </h1>
             
-            {task.description && (
+            {task?.description && (
               <p className="text-gray-600 dark:text-gray-300">
                 {task.description}
               </p>
@@ -608,7 +591,7 @@ const TaskDetails = () => {
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-500 dark:text-gray-400">Status:</span>
                 <select
-                  value={task.stage}
+                  value={task?.stage || 'todo'}
                   onChange={(e) => handleStatusChange(e.target.value)}
                   className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
                 >
@@ -620,13 +603,13 @@ const TaskDetails = () => {
               </div>
 
               <span className={`px-2 py-1 text-xs rounded-full ${
-                task.priority === 'high'
+                task?.priority === 'high'
                   ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                  : task.priority === 'medium'
+                  : task?.priority === 'medium'
                   ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
                   : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
               }`}>
-                {task.priority}
+                {task?.priority || 'low'}
               </span>
             </div>
           </div>
@@ -701,7 +684,7 @@ const TaskDetails = () => {
           </button>
         </div>
         
-        {task.subtasks?.length > 0 ? (
+        {task?.subtasks && task.subtasks.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {task.subtasks.map((subtask) => (
               <div

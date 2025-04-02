@@ -38,22 +38,20 @@ const TaskPage = () => {
   const { data: workspaceData, isLoading: workspaceLoading } = useGetWorkspaceQuery(workspaceId);
   const workspace = workspaceData?.workspace;
   const { 
-    data: tasks, 
+    data: tasksData, 
     isLoading: tasksLoading, 
     isError, 
     error, 
     refetch 
-  } = useGetTasksQuery({ 
-    workspaceId 
-  }, {
+  } = useGetTasksQuery(workspaceId, {
     skip: !workspaceId
   });
 
   // Filter tasks based on search term and filters
   const filteredTasks = useMemo(() => {
-    if (!tasks) return [];
+    if (!tasksData?.tasks) return [];
     
-    return tasks.filter(task => {
+    return tasksData.tasks.filter(task => {
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch = 
         task.title?.toLowerCase().includes(searchLower) ||
@@ -66,24 +64,24 @@ const TaskPage = () => {
       
       return matchesSearch && matchesPriority && matchesStatus;
     });
-  }, [tasks, searchTerm, filterPriority, filterStatus]);
+  }, [tasksData?.tasks, searchTerm, filterPriority, filterStatus]);
 
   // Calculate task statistics based on filtered tasks
   const getTaskStats = () => {
-    if (!tasks?.length) return null;
+    if (!tasksData?.tasks?.length) return null;
     
     // Get stats for all tasks (unfiltered) for the header stats
     const allStats = {
       byStatus: {
-        todo: tasks.filter(task => task.stage === 'todo').length,
-        inProgress: tasks.filter(task => task.stage === 'in_progress').length,
-        review: tasks.filter(task => task.stage === 'review').length,
-        completed: tasks.filter(task => task.stage === 'completed').length,
+        todo: tasksData.tasks.filter(task => task.stage === 'todo').length,
+        inProgress: tasksData.tasks.filter(task => task.stage === 'in_progress').length,
+        review: tasksData.tasks.filter(task => task.stage === 'review').length,
+        completed: tasksData.tasks.filter(task => task.stage === 'completed').length,
       },
       byPriority: {
-        high: tasks.filter(task => task.priority === 'high').length,
-        medium: tasks.filter(task => task.priority === 'medium').length,
-        low: tasks.filter(task => task.priority === 'low').length,
+        high: tasksData.tasks.filter(task => task.priority === 'high').length,
+        medium: tasksData.tasks.filter(task => task.priority === 'medium').length,
+        low: tasksData.tasks.filter(task => task.priority === 'low').length,
       }
     };
 
@@ -278,7 +276,7 @@ const TaskPage = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Tasks</h3>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">{tasks?.length || 0}</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{tasksData?.tasks?.length || 0}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Completed</h3>
@@ -328,7 +326,7 @@ const TaskPage = () => {
           />
         ) : (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            {tasks?.length > 0 ? 'No tasks match your filters' : 'No tasks found'}
+            {tasksData?.tasks?.length > 0 ? 'No tasks match your filters' : 'No tasks found'}
           </div>
         )}
       </div>

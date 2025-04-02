@@ -39,7 +39,18 @@ export default {
       backgroundImage: {
         'gradient-conic': 'conic-gradient(var(--tw-gradient-stops))',
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-      }
+      },
+      colors: {
+        // Your custom colors here
+      },
+      backgroundColor: {
+        'light': 'var(--bg-light)',
+        'dark': 'var(--bg-dark)',
+      },
+      textColor: {
+        'light': 'var(--text-light)',
+        'dark': 'var(--text-dark)',
+      },
     },
   },
   plugins: [

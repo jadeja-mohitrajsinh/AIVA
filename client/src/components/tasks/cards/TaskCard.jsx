@@ -185,64 +185,74 @@ const TaskCard = ({ task, onUpdate, onMoveToTrash, isAdmin = false }) => {
               leaveFrom="transform opacity-100 scale-100"
               leaveTo="transform opacity-0 scale-95"
             >
-              <Menu.Items 
-                className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="py-1">
-                  <Menu.Item>
-                    {({ active }) => (
-                      <button
-                        className={`${
-                          active ? 'bg-gray-100 dark:bg-gray-700' : ''
-                        } flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300`}
-
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setIsEditDialogOpen(true);
-                        }}
-                      >
-                        <FaEdit className="mr-3 w-4 h-4" />
-                        Edit Task
-                      </button>
-                    )}
-                  </Menu.Item>
-                  <Menu.Item>
-                    {({ active }) => (
-                      <button
-                        className={`${
-                          active ? 'bg-gray-100 dark:bg-gray-700' : ''
-                        } flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300`}
-
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleDuplicate();
-                        }}
-                      >
-                        <FaEye className="mr-3 w-4 h-4" />
-                        Duplicate
-                      </button>
-                    )}
-                  </Menu.Item>
-                  {isAdmin && (
-                    <Menu.Item>
-                      {({ active }) => (
-                        <button
-                          className={`${
-                            active ? 'bg-gray-100 dark:bg-gray-700' : ''
-                          } flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400`}
-                          onClick={handleMoveToTrash}
-                          disabled={isLoading}
-                        >
-                          <FaTrash className="mr-3 w-4 h-4" />
-                          {isLoading ? 'Moving...' : 'Move to Trash'}
-                        </button>
-                      )}
-                    </Menu.Item>
+              <Menu.Items className="absolute right-0 mt-1 w-44 bg-white dark:bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      className={`${
+                        active ? 'bg-gray-100 dark:bg-gray-700' : ''
+                      } block px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 w-full text-left`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        navigate(`/task/${task._id}`);
+                      }}
+                    >
+                      View Task
+                    </button>
                   )}
-                </div>
+                </Menu.Item>
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      className={`${
+                        active ? 'bg-gray-100 dark:bg-gray-700' : ''
+                      } block px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 w-full text-left`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsEditDialogOpen(true);
+                      }}
+                    >
+                      Edit Task
+                    </button>
+                  )}
+                </Menu.Item>
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      className={`${
+                        active ? 'bg-gray-100 dark:bg-gray-700' : ''
+                      } block px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 w-full text-left`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDuplicate();
+                      }}
+                    >
+                      Duplicate
+                    </button>
+                  )}
+                </Menu.Item>
+                <Menu.Item>
+                  {({ active }) => (
+                    <button
+                      className={`${
+                        active ? 'bg-gray-100 dark:bg-gray-700' : ''
+                      } ${
+                        isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                      } block px-3 py-1.5 text-sm text-red-600 dark:text-red-400 w-full text-left`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleMoveToTrash(e);
+                      }}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? 'Moving to trash...' : 'Move to Trash'}
+                    </button>
+                  )}
+                </Menu.Item>
               </Menu.Items>
             </Transition>
           </Menu>

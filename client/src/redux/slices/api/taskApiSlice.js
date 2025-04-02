@@ -1,20 +1,20 @@
 /*=================================================================
 * Project: AIVA-WEB
-* File: Button.jsx
+* File: taskApiSlice.js
 * Author: Mohitraj Jadeja
 * Date Created: February 28, 2024
 * Last Modified: February 28, 2024
 *=================================================================
 * Description:
-* Button component for displaying buttons.
+* Task API slice for handling task-related API requests.
 *=================================================================
 * Copyright (c) 2024 Mohitraj Jadeja. All rights reserved.
 *=================================================================*/
 import { apiSlice } from "../apiSlice";
-import { toast } from 'sonner';
+import { toast } from 'react-hot-toast';
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
-const TASK_URL = "/tasks";
+// Constants for task-related URLs - use single constant to avoid confusion
 const TASKS_URL = "/tasks";
 
 // Simple toast functions with toast.dismiss()
@@ -40,12 +40,17 @@ const notify = {
 };
 
 const baseQuery = fetchBaseQuery({
-  baseUrl: '/api',
+  baseUrl: process.env.NODE_ENV === 'development' 
+    ? 'http://localhost:8800/api'
+    : 'https://aiva-lfxq.onrender.com/api',
+  credentials: 'include',
   prepareHeaders: (headers) => {
     const token = localStorage.getItem('token');
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
     }
+    headers.set('Content-Type', 'application/json');
+    headers.set('Accept', 'application/json');
     return headers;
   },
 });
@@ -113,10 +118,13 @@ const validateTaskId = (taskId) => {
 };
 
 const validateWorkspaceId = (workspaceId) => {
-  if (!workspaceId || typeof workspaceId !== 'string' || !workspaceId.trim()) {
-    throw new Error('Workspace ID must be a non-empty string');
+  if (!workspaceId || typeof workspaceId !== 'string') {
+    throw new Error('Workspace ID is required');
   }
-  return workspaceId.trim();
+  if (!/^[0-9a-fA-F]{24}$/.test(workspaceId)) {
+    throw new Error('Invalid workspace ID format');
+  }
+  return true;
 };
 
 const validateId = (id, fieldName) => {
@@ -129,210 +137,118 @@ const validateId = (id, fieldName) => {
   return id.toString();
 };
 
-const taskApiSlice = createApi({
-  reducerPath: 'taskApi',
-  baseQuery: baseQueryWithErrorHandling,
-  tagTypes: ['Task', 'Tasks', 'Dashboard', 'Workspace'],
+// Helper function to validate workspace ID
+const isValidWorkspaceId = (workspaceId) => {
+  return workspaceId && typeof workspaceId === 'string' && /^[0-9a-fA-F]{24}$/.test(workspaceId);
+};
+
+// Create the task API slice
+export const taskApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
+    // Get all tasks for a workspace
     getTasks: builder.query({
-      query: ({ workspaceId, status }) => {
-        // Validate workspace ID
-        try {
-          validateWorkspaceId(workspaceId);
-        } catch (error) {
-          throw { status: 400, data: { message: error.message } };
+      query: (workspaceId) => {
+        if (!isValidWorkspaceId(workspaceId)) {
+          throw new Error('Valid workspace ID is required');
         }
-
         return {
-          url: `/tasks`,
-          method: 'GET',
-          params: { workspaceId, status }
-        };
-      },
-      transformResponse: (response) => {
-        if (!response?.status) {
-          throw new Error('Failed to fetch tasks');
-        }
-        return response.tasks || []; // Return the tasks array or empty array if null
-      },
-      transformErrorResponse: (error) => ({
-        status: error.status,
-        message: error.data?.message || 'Failed to fetch tasks'
-      }),
-      providesTags: ['Task']
-    }),
-
-    getDashboardStats: builder.query({
-      query: (workspaceId) => `/tasks/dashboard?workspaceId=${workspaceId}`,
-      providesTags: ['Dashboard'],
-    }),
-
-    getTask: builder.query({
-      query: ({ taskId, workspaceId }) => {
-        try {
-          validateWorkspaceId(workspaceId);
-          validateTaskId(taskId);
-        } catch (error) {
-          throw { status: 400, data: { message: error.message } };
-        }
-        
-        return {
-          url: `/tasks/${taskId}`,
+          url: TASKS_URL,
           method: 'GET',
           params: { workspaceId }
         };
       },
+      providesTags: ['Tasks'],
       transformResponse: (response) => {
-        if (!response?.success && !response?.data) {
-          throw new Error('Failed to fetch task');
-        }
-        // Ensure subtasks array exists and has proper status values
-        const task = response.data;
-        if (task.subtasks) {
-          task.subtasks = task.subtasks.map(subtask => ({
-            ...subtask,
-            status: subtask.status || 'todo'
-          }));
-        }
-        return task;
-      },
-      providesTags: (result, error, { taskId }) => [
-        { type: 'Task', id: taskId },
-        'Task'
-      ]
+        return response?.tasks ? response : { tasks: [] };
+      }
     }),
 
-    createTask: builder.mutation({
-      query: ({ taskData }) => ({
-        url: '/tasks',
-        method: 'POST',
-        body: taskData
+    // Get a single task by ID
+    getTask: builder.query({
+      query: (taskId) => ({
+        url: `${TASKS_URL}/${taskId}`,
+        method: 'GET'
       }),
-      transformResponse: (response) => {
-        if (!response?.success) {
-          throw new Error('Failed to create task');
+      providesTags: (result, error, taskId) => [{ type: 'Tasks', id: taskId }]
+    }),
+
+    // Create a new task
+    createTask: builder.mutation({
+      query: (taskData) => {
+        // Validate required fields
+        if (!taskData.title?.trim()) {
+          throw new Error('Title is required');
         }
+        if (!isValidWorkspaceId(taskData.workspaceId)) {
+          throw new Error('Valid workspace ID is required');
+        }
+        if (!taskData.dueDate) {
+          throw new Error('Due date is required');
+        }
+
+        // Clean and prepare the data
+        const cleanedData = {
+          ...taskData,
+          title: taskData.title.trim(),
+          workspaceId: taskData.workspaceId.trim(),
+          description: taskData.description?.trim() || '',
+          stage: taskData.stage || 'todo',
+          priority: taskData.priority || 'medium',
+          tags: taskData.tags || [],
+          assignees: taskData.assignees || []
+        };
+
         return {
-          status: true,
-          data: response.data
+          url: TASKS_URL,
+          method: 'POST',
+          body: cleanedData
         };
       },
-      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+      invalidatesTags: ['Tasks'],
+      async onQueryStarted(_, { dispatch, queryFulfilled }) {
         try {
           const { data } = await queryFulfilled;
-          if (data?.status) {
-            // Invalidate relevant tags to refetch tasks
-            dispatch(taskApiSlice.util.invalidateTags(['Task', 'Tasks', 'Dashboard']));
+          notify.success('Task created successfully');
+          
+          // Invalidate and refetch tasks for the workspace
+          if (data?.workspaceId) {
+            dispatch(
+              taskApiSlice.util.invalidateTags([
+                { type: 'Tasks', id: data.workspaceId },
+                'Dashboard'
+              ])
+            );
           }
+          
+          return data;
         } catch (error) {
-          if (error?.error?.status === 400) {
-            toast.error('Please fill in all required fields: title, workspace, and due date');
-          } else if (error?.error?.status === 500) {
-            toast.error('Server error. Please try again later.');
-          } else {
-            toast.error(error?.error?.data?.message || 'Failed to create task');
-          }
+          const message = error.error?.data?.message || 'Failed to create task';
+          notify.error(message);
+          throw error;
         }
-      },
-      invalidatesTags: ['Task', 'Tasks', 'Dashboard']
+      }
     }),
 
+    // Update a task
     updateTask: builder.mutation({
-      query: ({ taskId, workspaceId, updates }) => {
+      query: ({ taskId, ...taskData }) => ({
+        url: `${TASKS_URL}/${taskId}`,
+        method: 'PUT',
+        body: taskData,
+      }),
+      invalidatesTags: (result, error, { taskId }) => [{ type: 'Tasks', id: taskId }],
+      onQueryStarted: async (_, { queryFulfilled }) => {
         try {
-          // Validate IDs
-          if (!taskId || !/^[0-9a-fA-F]{24}$/.test(taskId)) {
-            throw new Error('Invalid task ID format');
-          }
-          if (!workspaceId || !/^[0-9a-fA-F]{24}$/.test(workspaceId)) {
-            throw new Error('Invalid workspace ID format');
-          }
-
-          // Validate stage if it's being updated
-          if (updates.stage) {
-            const validStages = ['todo', 'in_progress', 'review', 'completed'];
-            if (!validStages.includes(updates.stage)) {
-              throw new Error('Invalid task stage');
-            }
-          }
-
-          return {
-            url: `/tasks/${taskId}`,
-            method: 'PUT',
-            body: {
-              workspaceId,
-              ...updates
-            }
-          };
+          await queryFulfilled;
+          toast.success('Task updated successfully');
         } catch (error) {
-          throw { status: 400, data: { message: error.message } };
+          console.error('Error updating task:', error);
+          toast.error('Failed to update task');
         }
       },
-      transformResponse: (response) => {
-        if (!response?.status && !response?.data) {
-          throw new Error('Failed to update task');
-        }
-        return response.data || response;
-      },
-      async onQueryStarted({ taskId, workspaceId, updates }, { dispatch, queryFulfilled }) {
-        try {
-          // Wait for the mutation to complete
-          const { data: updatedTask } = await queryFulfilled;
-
-          // Update the task in the cache immediately
-          dispatch(
-            taskApiSlice.util.updateQueryData(
-              'getWorkspaceTasks',
-              { workspaceId },
-              (draft) => {
-                if (!draft?.tasks) return;
-                const taskIndex = draft.tasks.findIndex(t => t._id === taskId);
-                if (taskIndex !== -1) {
-                  draft.tasks[taskIndex] = { ...draft.tasks[taskIndex], ...updates };
-                }
-                
-                // Recalculate stats
-                const tasks = draft.tasks;
-                draft.stats = {
-                  total: tasks.length,
-                  todo: tasks.filter(t => t.stage === 'todo').length,
-                  in_progress: tasks.filter(t => t.stage === 'in_progress').length,
-                  review: tasks.filter(t => t.stage === 'review').length,
-                  completed: tasks.filter(t => t.stage === 'completed').length,
-                  overdue: tasks.filter(t => {
-                    const dueDate = new Date(t.dueDate);
-                    return dueDate && !isNaN(dueDate.getTime()) && 
-                           dueDate < new Date() && t.stage !== 'completed';
-                  }).length
-                };
-                
-                // Calculate additional stats
-                draft.stats.activeTasksCount = draft.stats.in_progress + draft.stats.review;
-                draft.stats.completionRate = draft.stats.total > 0 
-                  ? Math.round((draft.stats.completed / draft.stats.total) * 100) 
-                  : 0;
-              }
-            )
-          );
-
-          // Invalidate relevant tags to ensure data consistency
-          dispatch(
-            taskApiSlice.util.invalidateTags([
-              { type: 'Task', id: taskId },
-              { type: 'Tasks', id: workspaceId },
-              'Dashboard'
-            ])
-          );
-        } catch (error) {
-        }
-      },
-      invalidatesTags: (result, error, { taskId, workspaceId }) => [
-        { type: 'Task', id: taskId },
-        { type: 'Tasks', id: workspaceId },
-        'Dashboard'
-      ]
     }),
 
+    // Delete a task
     deleteTask: builder.mutation({
       query: ({ taskId, workspaceId }) => {
         // Validate parameters
@@ -340,7 +256,7 @@ const taskApiSlice = createApi({
           throw new Error('Both taskId and workspaceId are required');
         }
         return {
-          url: `/tasks/${taskId}`,
+          url: `${TASKS_URL}/${taskId}`,
           method: 'DELETE',
           params: { workspaceId }
         };
@@ -351,50 +267,59 @@ const taskApiSlice = createApi({
         }
         return response;
       },
+      transformErrorResponse: (error) => ({
+        status: error.status,
+        message: error.data?.message || 'Failed to delete task'
+      }),
+      invalidatesTags: ['Tasks'],
       async onQueryStarted({ taskId, workspaceId }, { dispatch, queryFulfilled }) {
         try {
-          // Wait for the server response
-          const { data } = await queryFulfilled;
+          await queryFulfilled;
+          toast.success('Task deleted successfully');
           
-          if (data?.success) {
-            // Remove from trash view
-            dispatch(
-              taskApiSlice.util.updateQueryData(
-                'getWorkspaceTasks',
-                { workspaceId, filter: 'trash' },
-                (draft) => {
-                  if (!draft?.tasks) return;
-                  draft.tasks = draft.tasks.filter(t => t._id !== taskId);
-                  if (draft.stats) {
-                    draft.stats.total = Math.max((draft.stats.total || 0) - 1, 0);
-                    draft.stats.trashCount = Math.max((draft.stats.trashCount || 0) - 1, 0);
-                    draft.stats.deleted = Math.max((draft.stats.deleted || 0) - 1, 0);
-                  }
-                }
-              )
-            );
-
-            // Invalidate relevant tags to ensure data consistency
-            dispatch(
-              taskApiSlice.util.invalidateTags([
-                { type: 'Task', id: taskId },
-                { type: 'Tasks', id: workspaceId },
-                'Dashboard'
-              ])
-            );
-
-            notify.success('Task deleted permanently');
-          }
+          // Invalidate and refetch tasks for the workspace
+          dispatch(
+            taskApiSlice.util.invalidateTags([
+              { type: 'Tasks', id: workspaceId },
+              'Dashboard'
+            ])
+          );
         } catch (error) {
-          notify.error(error?.error?.data?.message || 'Failed to delete task');
-          throw error;
+          console.error('Error deleting task:', error);
+          toast.error(error.data?.message || 'Failed to delete task');
         }
       },
-      invalidatesTags: (result, error, { taskId, workspaceId }) => [
-        { type: 'Task', id: taskId },
-        { type: 'Tasks', id: workspaceId },
-        'Dashboard'
-      ]
+    }),
+
+    // Get dashboard statistics
+    getDashboardStats: builder.query({
+      query: (workspaceId) => ({
+        url: `${TASKS_URL}/stats?workspaceId=${workspaceId}`,
+        method: 'GET',
+      }),
+      providesTags: ['Tasks'],
+      transformResponse: (response) => {
+        if (!response?.stats) {
+          return { stats: null };
+        }
+        return response;
+      },
+      onQueryStarted: async (_, { queryFulfilled }) => {
+        try {
+          await queryFulfilled;
+        } catch (error) {
+          console.error('Error fetching dashboard stats:', error);
+          toast.error('Failed to fetch dashboard statistics');
+        }
+      },
+    }),
+
+    getTaskById: builder.query({
+      query: (taskId) => ({
+        url: `${TASKS_URL}/${taskId}`,
+        method: 'GET'
+      }),
+      providesTags: (result, error, taskId) => [{ type: 'Task', id: taskId }]
     }),
 
     createSubtask: builder.mutation({
@@ -772,6 +697,7 @@ export const {
   useCreateTaskMutation,
   useUpdateTaskMutation,
   useDeleteTaskMutation,
+  useGetDashboardStatsQuery,
   useCreateSubtaskMutation,
   useUpdateSubtaskMutation,
   useDeleteSubtaskMutation,
@@ -780,7 +706,6 @@ export const {
   useUploadAssetMutation,
   useDeleteTaskAssetMutation,
   useGetWorkspaceTasksQuery,
-  useGetDashboardStatsQuery,
   useMoveToTrashMutation,
   useRestoreTaskMutation,
   usePostActivityMutation,

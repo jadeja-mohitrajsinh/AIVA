@@ -174,22 +174,22 @@ const Trash = () => {
             if (result.status) {
               successCount++;
             } else {
-
-              //console.error(`Error restoring task: ${result.message}`);
-
               failCount++;
             }
           } else {
+            // Ensure taskId and workspaceId are strings
+            const taskId = task._id.toString();
+            const workspaceId = currentWorkspace._id.toString();
+
+            // Call deleteTask with both taskId and workspaceId
             await deleteTask({
-              taskId: task._id,
-              workspaceId: currentWorkspace._id
+              taskId,
+              workspaceId
             }).unwrap();
             successCount++;
           }
         } catch (error) {
-
-          //console.error(`Error ${operation}ing task:`, error);
-
+          console.error(`Error ${operation}ing task:`, error);
           failCount++;
         }
       }
@@ -203,9 +203,7 @@ const Trash = () => {
 
       setSelectedItems(new Set());
     } catch (error) {
-
-      //console.error(`Bulk ${operation} error:`, error);
-
+      console.error(`Bulk ${operation} error:`, error);
       toast.dismiss(toastId);
       toast.error(`Failed to ${operation} items`);
     }
@@ -213,15 +211,28 @@ const Trash = () => {
 
   const handleOperation = async () => {
     try {
-      if (type.includes("delete")) {
-        await deleteTask({ taskId: selected, workspaceId: currentWorkspace._id }).unwrap();
-        toast.success("Task deleted permanently");
+      if (type.includes("deleteSelected") || type.includes("restoreSelected")) {
+        // Handle bulk operations
+        await executeBulkOperation(type.includes("restoreSelected") ? "restore" : "delete");
       } else {
-        await restoreTask({ taskId: selected, workspaceId: currentWorkspace._id }).unwrap();
-        toast.success("Task restored successfully");
+        // Handle single operations
+        if (type.includes("delete")) {
+          await deleteTask({ 
+            taskId: selected, 
+            workspaceId: currentWorkspace._id 
+          }).unwrap();
+          toast.success("Task deleted permanently");
+        } else {
+          await restoreTask({ 
+            taskId: selected, 
+            workspaceId: currentWorkspace._id 
+          }).unwrap();
+          toast.success("Task restored successfully");
+        }
       }
       setOpenDialog(false);
     } catch (err) {
+      console.error("Operation error:", err);
       toast.error(err?.data?.message || "Operation failed");
     }
   };

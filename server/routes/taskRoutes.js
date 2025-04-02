@@ -44,7 +44,16 @@ router.use(protect);
 
 // Task routes
 router.route('/')
-  .get(getTasks)
+  .get(asyncHandler(async (req, res) => {
+    const { workspaceId } = req.query;
+    if (!workspaceId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Workspace ID is required'
+      });
+    }
+    return getTasks(req, res);
+  }))
   .post(createTask);
 
 router.route('/dashboard')
