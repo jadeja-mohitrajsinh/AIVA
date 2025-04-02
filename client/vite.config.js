@@ -27,11 +27,12 @@ export default defineConfig({
     loader: 'jsx',
     include: /\.[jt]sx?$/,
     exclude: [],
-    minify: true
+    minify: true,
+    keepNames: true
   },
   server: {
     host: '0.0.0.0',
-    port: 3000,
+    port: process.env.PORT || 3000,
     strictPort: true,
     proxy: {
       '/api': {
@@ -39,10 +40,14 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+    hmr: {
+      protocol: 'ws',
+      host: '0.0.0.0'
+    }
   },
   preview: {
     host: '0.0.0.0',
-    port: 3000,
+    port: process.env.PORT || 3000,
     strictPort: true,
   },
   build: {
