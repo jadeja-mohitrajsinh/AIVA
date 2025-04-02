@@ -50,35 +50,15 @@ const baseQueryWithRetry = async (args, api, extraOptions) => {
     };
   }
 
-  try {
-    let result = await baseQuery(queryArgs, api, extraOptions);
+  const result = await baseQuery(queryArgs, api, extraOptions);
 
-    // Don't retry on 404s or if explicitly marked as no-retry
-    if (result.error) {
-      const status = result.error.status;
-      const message = result.error.data?.message;
-      const isCreateWorkspacePage = window.location.pathname === '/create-workspace';
-
-      // Don't retry or show errors for expected cases
-      if (status === 404 || status === 401 || isCreateWorkspacePage) {
-        return result;
-      }
-
-      // Show error message for unexpected errors
-      if (message) {
-        toast.error(message);
-      }
-    }
-
+  // Handle 401 errors
+  if (result.error?.status === 401) {
+    api.dispatch(logout());
     return result;
-  } catch (err) {
-    return {
-      error: {
-        status: 'FETCH_ERROR',
-        data: { message: 'Failed to process request' }
-      }
-    };
   }
+
+  return result;
 };
 
 export const apiSlice = createApi({
