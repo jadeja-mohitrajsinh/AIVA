@@ -38,6 +38,8 @@ export default defineConfig({
       '/api': {
         target: 'https://aiva-lfxq.onrender.com',
         changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '')
       },
     },
   },
