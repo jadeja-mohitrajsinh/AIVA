@@ -20,7 +20,8 @@ export default defineConfig({
     extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
   },
   optimizeDeps: {
-    include: ['react-hook-form', 'firebase/app', 'firebase/storage']
+    include: ['react-hook-form', 'firebase/app', 'firebase/storage', 'framer-motion'],
+    exclude: ['framer-motion/dist/es/components/AnimatePresence/index.mjs', 'framer-motion/dist/es/motion/index.mjs']
   },
   esbuild: {
     loader: 'jsx',
@@ -38,10 +39,17 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: false,
+    minify: 'terser',
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
+      },
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'framer-motion': ['framer-motion'],
+        },
       },
     },
   },
