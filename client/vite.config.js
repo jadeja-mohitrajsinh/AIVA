@@ -27,9 +27,12 @@ export default defineConfig({
     loader: 'jsx',
     include: /\.[jt]sx?$/,
     exclude: [],
+    minify: true
   },
   server: {
+    host: '0.0.0.0',
     port: 3000,
+    strictPort: true,
     proxy: {
       '/api': {
         target: 'http://localhost:8800',
@@ -37,9 +40,15 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    host: '0.0.0.0',
+    port: 3000,
+    strictPort: true,
+  },
   build: {
     outDir: 'dist',
     sourcemap: false,
+    minify: 'esbuild',
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
