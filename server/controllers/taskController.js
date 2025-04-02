@@ -121,22 +121,63 @@ const createTask = asyncHandler(async (req, res) => {
         assignees: assignees || []
     });
 
+    // Populate the task with necessary fields
+    await task.populate([
+        { path: 'creator', select: 'name email avatar' },
+        { path: 'assignees', select: 'name email avatar' },
+        { path: 'workspace', select: 'name type' }
+    ]);
+
     res.status(201).json({ 
         success: true, 
-        data: task 
+        message: 'Task created successfully',
+        data: {
+            ...task.toObject(),
+            workspace: workspaceId
+        }
     });
 });
 
 // @desc    Get dashboard stats
-// @route   GET /api/dashboard/stats
+// @route   GET /api/tasks/stats
 // @access  Private
 const getDashboardStats = asyncHandler(async (req, res) => {
     const { workspaceId } = req.query;
 
+    // Validate workspace ID
+    if (!workspaceId) {
+        return res.status(400).json({
+            success: false,
+            message: 'Workspace ID is required'
+        });
+    }
+
+    // Get workspace and validate access
+    const workspace = await Workspace.findById(workspaceId);
+    if (!workspace) {
+        return res.status(404).json({
+            success: false,
+            message: 'Workspace not found'
+        });
+    }
+
+    // Check if user is a member of the workspace
+    const isMember = workspace.members.some(
+        m => m.user.toString() === req.user._id.toString()
+    );
+
+    if (!isMember) {
+        return res.status(403).json({
+            success: false,
+            message: 'Not authorized to access this workspace'
+        });
+    }
+
     // Get tasks for the workspace
     const tasks = await Task.find({ 
         workspace: workspaceId,
-        isTrashed: false 
+        isDeleted: false,
+        isArchived: false
     });
 
     // Calculate stats
@@ -146,6 +187,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         in_progress: tasks.filter(task => task.stage === 'in_progress').length,
         review: tasks.filter(task => task.stage === 'review').length,
         completed: tasks.filter(task => task.stage === 'completed').length,
+        archived: tasks.filter(task => task.isArchived === true).length,
+        deleted: tasks.filter(task => task.isDeleted === true).length,
         overdue: tasks.filter(task => 
             task.dueDate && 
             new Date(task.dueDate) < new Date() && 
@@ -154,12 +197,13 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         completionRate: tasks.length > 0 
             ? Math.round((tasks.filter(t => t.stage === 'completed').length / tasks.length) * 100)
             : 0,
-        activeTasksCount: tasks.filter(task => task.stage !== 'completed').length
+        activeTasksCount: tasks.filter(task => task.stage !== 'completed').length,
+        trashCount: tasks.filter(task => task.isArchived === true || task.isDeleted === true).length
     };
 
     res.json({
         success: true,
-        data: stats
+        stats
     });
 });
 

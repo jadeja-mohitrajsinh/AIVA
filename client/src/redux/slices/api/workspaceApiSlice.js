@@ -110,17 +110,15 @@ export const workspaceApiSlice = apiSlice.injectEndpoints({
       }),
       transformResponse: (response) => {
         if (!response?.status) {
-
-          // console.log('Invalid workspace response:', response);
-
           return null;
         }
         return response.data;
       },
       transformErrorResponse: (error) => {
-
-        // console.error('Workspace fetch error:', error);
-
+        // Don't show error toast for 404 as it's handled by the UI
+        if (error.status !== 404) {
+          toast.error(error.data?.message || 'Failed to load workspace');
+        }
         return {
           status: false,
           message: error.data?.message || 'Failed to load workspace'
@@ -128,7 +126,20 @@ export const workspaceApiSlice = apiSlice.injectEndpoints({
       },
       providesTags: (result, error, workspaceId) => [
         { type: 'Workspace', id: workspaceId }
-      ]
+      ],
+      async onQueryStarted(workspaceId, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          if (data) {
+            dispatch(setCurrentWorkspace(data));
+          }
+        } catch (error) {
+          // Only show error toast for non-404 errors
+          if (error.status !== 404) {
+            toast.error(error.data?.message || 'Failed to load workspace');
+          }
+        }
+      }
     }),
 
     updateWorkspace: builder.mutation({

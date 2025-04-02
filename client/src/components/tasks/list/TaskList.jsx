@@ -10,7 +10,7 @@
 *=================================================================
 * Copyright (c) 2024 Mohitraj Jadeja. All rights reserved.
 *=================================================================*/
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useGetWorkspaceTasksQuery } from '../../../redux/slices/api/taskApiSlice';
 import { useGetWorkspaceMembersQuery } from '../../../redux/slices/api/workspaceApiSlice';
 import TaskCard from '../cards/TaskCard';
@@ -66,6 +66,7 @@ const TaskList = ({ tasks = [], showBudgetDetails = false, workspace }) => {
     try {
       await refetch();
     } catch (err) {
+      console.error('Error refreshing tasks:', err);
       toast.error('Failed to refresh tasks');
     }
   }, [workspaceContext?._id, refetch]);
@@ -76,6 +77,7 @@ const TaskList = ({ tasks = [], showBudgetDetails = false, workspace }) => {
     try {
       await refetch();
     } catch (err) {
+      console.error('Error refreshing tasks:', err);
       toast.error('Failed to refresh tasks');
     }
   };
@@ -85,6 +87,17 @@ const TaskList = ({ tasks = [], showBudgetDetails = false, workspace }) => {
     setIsAddTaskOpen(false);
     refetch(); // Refresh tasks and stats
   }, [refetch]);
+
+  // Effect to handle task updates
+  useEffect(() => {
+    if (workspaceContext?._id) {
+      const interval = setInterval(() => {
+        refetch();
+      }, 30000); // Refetch every 30 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [workspaceContext?._id, refetch]);
 
   // Show loading state when workspace is loading
   if (isWorkspaceLoading) {
@@ -146,7 +159,29 @@ const TaskList = ({ tasks = [], showBudgetDetails = false, workspace }) => {
   return (
     <div className="flex flex-col gap-4">
       {/* Header */}
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-between">
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleFilterChange('active')}
+            className={`px-3 py-1 rounded-md text-sm font-medium ${
+              filter === 'active'
+                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`}
+          >
+            Active
+          </button>
+          <button
+            onClick={() => handleFilterChange('trash')}
+            className={`px-3 py-1 rounded-md text-sm font-medium ${
+              filter === 'trash'
+                ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`}
+          >
+            Trash
+          </button>
+        </div>
         <button
           onClick={() => setIsAddTaskOpen(true)}
           className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
@@ -155,35 +190,34 @@ const TaskList = ({ tasks = [], showBudgetDetails = false, workspace }) => {
         </button>
       </div>
 
-      
-
       {/* Task List */}
       <div className="mt-4">
-        {isTasksLoading ? (
-          <div className="flex justify-center">
-            <Spinner size="lg" />
-          </div>
-        ) : tasksError ? (
-          <div className="text-center text-red-600 dark:text-red-400">
-            {tasksError.data?.message || 'Failed to load tasks'}
-          </div>
-        ) : tasksFromData.length === 0 ? (
+        {tasksFromData.length === 0 ? (
           <EmptyState
-            title="No tasks found"
-            description="Get started by creating a new task"
+            title={`No ${filter === 'trash' ? 'trashed' : 'active'} tasks found`}
+            description={filter === 'trash' 
+              ? "Tasks you move to trash will appear here"
+              : "Get started by creating a new task"}
             action={
-              <Button
-                label="Create Task"
-                onClick={() => setIsAddTaskOpen(true)}
-                variant="primary"
-                icon={<FaTasks />}
-              />
+              filter === 'active' ? (
+                <Button
+                  label="Create Task"
+                  onClick={() => setIsAddTaskOpen(true)}
+                  variant="primary"
+                  icon={<FaTasks />}
+                />
+              ) : null
             }
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {tasksFromData.map((task) => (
-              <TaskCard key={task._id} task={task} onUpdate={handleTaskUpdate} />
+              <TaskCard 
+                key={task._id} 
+                task={task} 
+                onUpdate={handleTaskUpdate}
+                isTrashView={filter === 'trash'}
+              />
             ))}
           </div>
         )}

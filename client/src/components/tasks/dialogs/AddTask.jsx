@@ -119,16 +119,41 @@ const AddTask = ({ isOpen, setOpen, onSuccess, taskType = 'default' }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateForm()) {
-      return;
-    }
-
     if (!workspace?._id) {
       toast.error('Please select a workspace first');
       return;
     }
 
-    setIsSubmitting(true);
+    // Validate form
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    // Close dialog immediately
+    setOpen(false);
+
+    // Reset form data
+    setFormData({
+      title: '',
+      description: '',
+      priority: 'medium',
+      stage: 'todo',
+      dueDate: '',
+      assignees: [],
+      amount: '',
+      category: '',
+      frequency: 'one-time',
+      budgetType: 'expense',
+      startDate: '',
+      endDate: '',
+      notes: ''
+    });
+    
+    // Reset other states
+    setSelectedMembers([]);
+    setErrors({});
 
     try {
       const taskData = {
@@ -156,32 +181,8 @@ const AddTask = ({ isOpen, setOpen, onSuccess, taskType = 'default' }) => {
       const result = await createTask(taskData).unwrap();
       
       if (result?.status) {
-        // Reset form data
-        setFormData({
-          title: '',
-          description: '',
-          priority: 'medium',
-          stage: 'todo',
-          dueDate: '',
-          assignees: [],
-          amount: '',
-          category: '',
-          frequency: 'one-time',
-          budgetType: 'expense',
-          startDate: '',
-          endDate: '',
-          notes: ''
-        });
-        
-        // Reset other states
-        setSelectedMembers([]);
-        setErrors({});
-        
         // Show success message
         toast.success('Task created successfully');
-        
-        // Close the dialog
-        setOpen(false);
         
         // Call success callback after a short delay
         if (onSuccess) {
@@ -191,9 +192,8 @@ const AddTask = ({ isOpen, setOpen, onSuccess, taskType = 'default' }) => {
         }
       }
     } catch (error) {
+      // Show error message
       toast.error(error?.data?.message || 'Failed to create task');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 

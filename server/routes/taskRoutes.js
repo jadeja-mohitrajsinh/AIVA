@@ -56,7 +56,7 @@ router.route('/')
   }))
   .post(createTask);
 
-router.route('/dashboard')
+router.route('/stats')
   .get(getDashboardStats);
 
 router.route('/workspace')
