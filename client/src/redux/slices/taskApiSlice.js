@@ -18,7 +18,7 @@ const isValidWorkspaceId = (workspaceId) => {
 
 const taskApiSlice = createApi({
   reducerPath: 'taskApi',
-  baseQuery: fetchBaseQuery({ baseUrl: 'http://localhost:8800/api' }),
+  baseQuery: fetchBaseQuery({ baseUrl: 'https://aiva-lfxq.onrender.com/api' }),
   endpoints: (builder) => ({
     createTask: builder.mutation({
       query: ({ taskData, workspaceId }) => {

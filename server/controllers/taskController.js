@@ -212,16 +212,20 @@ const getTasks = asyncHandler(async (req, res) => {
     try {
         // Validate workspace access
         if (!workspaceId) {
-            res.status(400);
-            throw new Error('Workspace ID is required');
+            return res.status(400).json({
+                success: false,
+                message: 'Workspace ID is required'
+            });
         }
 
         const workspace = await Workspace.findById(workspaceId)
             .populate('members.user', 'name email');
         
         if (!workspace) {
-            res.status(404);
-            throw new Error('Workspace not found');
+            return res.status(404).json({
+                success: false,
+                message: 'Workspace not found'
+            });
         }
 
         // Check if user is a member of the workspace
@@ -230,9 +234,10 @@ const getTasks = asyncHandler(async (req, res) => {
         );
 
         if (!isMember) {
-            const error = new Error('Not authorized to access this workspace');
-            error.status = 403;
-            throw error;
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to access this workspace'
+            });
         }
 
         // Get tasks
@@ -272,16 +277,18 @@ const getTasks = asyncHandler(async (req, res) => {
             title: task.title || 'Untitled Task'
         }));
 
-        res.json({
-            status: true,
+        return res.json({
+            success: true,
             tasks: processedTasks,
             stats
         });
 
     } catch (error) {
         console.error('Error fetching tasks:', error);
-        res.status(error.status || 500);
-        throw new Error(error.message || 'Error fetching tasks');
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Error fetching tasks'
+        });
     }
 });
 
