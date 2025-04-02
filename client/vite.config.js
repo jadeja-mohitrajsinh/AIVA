@@ -40,15 +40,15 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
-    hmr: {
-      protocol: 'ws',
-      host: '0.0.0.0'
-    }
   },
   preview: {
     host: '0.0.0.0',
     port: process.env.PORT || 3000,
     strictPort: true,
+    cors: true,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+    }
   },
   build: {
     outDir: 'dist',
